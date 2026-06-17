@@ -1,4 +1,4 @@
-import { LoginResponse } from "@/types/auth";
+import { LoginResponse } from "@/src/types/auth";
 
 export async function login(
   username: string,
