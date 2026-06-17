@@ -562,13 +562,15 @@ export default function Home() {
           isMotorCompleto={itensSolicitados.length === 0 || (itensSolicitados.length === 1 && itensSolicitados[0].nome === 'Motor Completo')}
           itensSolicitados={itensSolicitados}
           dadosEmpresa={dadosEmpresa}
-          dadosIniciais={{
-            marca: motorDados?.marca || motorDados?.Make || '',
-            modelo: motorDados?.modelo || motorDados?.Model || '',
-            ano: motorDados?.ano || motorDados?.ModelYear || '',
-            vin: motorDados?.vin || vinInput,
-            notaOrigem: motorDados?.inseridoPeloCliente ? "Inserido pelo Cliente" : "Detectado Automático"
-          }}
+         dadosIniciais={{
+  marca: motorDados?.marca || motorDados?.Make || '',
+  modelo: motorDados?.modelo || motorDados?.Model || '',
+  ano: motorDados?.ano || motorDados?.ModelYear || '',
+  vin: motorDados?.vin || vinInput,
+  notaOrigem: motorDados?.inseridoPeloCliente
+    ? "Inserido pelo Cliente"
+    : "Detectado Automático"
+} as any}
         />
       )}
 
