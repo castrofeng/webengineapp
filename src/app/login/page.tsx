@@ -2,11 +2,8 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/src/contexts/AuthContext";
-
-// Importação da URL base a partir do ficheiro centralizado
 import { API_BASE_URL } from "@/src/api/api";
 
-// Configuração do sufixo /auth mantendo a integridade com as rotas do backend
 const API_AUTH_URL = `${API_BASE_URL}/auth`;
 
 export default function AuthPage() {
@@ -18,6 +15,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
+  const [debugToken, setDebugToken] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,14 +24,12 @@ export default function AuthPage() {
   const [telefone, setTelefone] = useState("");
   const [tokenEmail, setTokenEmail] = useState("");
 
-  // =========================
-  // UI CONTROL
-  // =========================
   const alternarAba = (aba: "login" | "registo") => {
     setAbaAtiva(aba);
     setPasso(1);
     setErro(null);
     setSucesso(null);
+    setDebugToken(null);
   };
 
   // =========================
@@ -41,10 +37,10 @@ export default function AuthPage() {
   // =========================
   const avancarParaToken = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (loading) return;
 
     setErro(null);
+    setDebugToken(null);
 
     if (password !== confirmPassword) {
       setErro("As palavras-passe não coincidem.");
@@ -75,14 +71,24 @@ export default function AuthPage() {
       const data = await response.json();
 
       console.log("Response:", data);
-
       console.groupEnd();
 
       if (!response.ok) {
         throw new Error(data.detail || "Erro ao registar.");
       }
 
-      setSucesso("Código enviado para o email.");
+      // Mostra o token no ecrã se o email não foi enviado
+      if (data.debug_token) {
+        setDebugToken(data.debug_token);
+        setSucesso(
+          data.email_enviado
+            ? "Código enviado para o email."
+            : "Email não disponível. Use o código abaixo para ativar a conta."
+        );
+      } else {
+        setSucesso("Código enviado para o email.");
+      }
+
       setPasso(2);
     } catch (err: any) {
       console.error("❌ REGISTO ERROR:", err.message);
@@ -97,7 +103,6 @@ export default function AuthPage() {
   // =========================
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (loading) return;
 
     setLoading(true);
@@ -132,7 +137,6 @@ export default function AuthPage() {
         throw new Error(data.detail || "Login falhou.");
       }
 
-      // 🔥 ÚNICA RESPONSABILIDADE: guardar sessão
       login(data.user, data.token);
 
     } catch (err: any) {
@@ -148,7 +152,6 @@ export default function AuthPage() {
   // =========================
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (loading) return;
 
     setLoading(true);
@@ -173,7 +176,6 @@ export default function AuthPage() {
       const data = await response.json();
 
       console.log("Response:", data);
-
       console.groupEnd();
 
       if (!response.ok) {
@@ -181,6 +183,7 @@ export default function AuthPage() {
       }
 
       setSucesso("Conta ativada com sucesso!");
+      setDebugToken(null);
 
       setTimeout(() => {
         setAbaAtiva("login");
@@ -200,18 +203,14 @@ export default function AuthPage() {
   // =========================
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-slate-100">
-
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-        
-        {/* Botão Voltar */}
+
         <button className="text-sm text-gray-500 mb-4 hover:underline">
-            ← Voltar
+          ← Voltar
         </button>
 
-        {/* Texto genérico */}
         <p className="text-gray-600 mb-6 text-sm">Insira os dados solicitados para continuar.</p>
 
-        {/* tabs */}
         <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
           <button
             onClick={() => alternarAba("login")}
@@ -219,7 +218,6 @@ export default function AuthPage() {
           >
             Login
           </button>
-
           <button
             onClick={() => alternarAba("registo")}
             className={`flex-1 p-2 rounded-lg font-bold ${abaAtiva === "registo" ? "bg-white" : ""}`}
@@ -228,7 +226,6 @@ export default function AuthPage() {
           </button>
         </div>
 
-        {/* feedback */}
         {erro && (
           <div className="bg-red-100 text-red-700 p-2 rounded mb-3 text-sm">
             {erro}
@@ -239,9 +236,19 @@ export default function AuthPage() {
           <div className="bg-green-100 text-green-700 p-4 rounded mb-3 text-sm border border-green-200">
             <p className="font-bold">Sucesso!</p>
             <p>{sucesso}</p>
-            {/* Nova mensagem de aviso sobre o SPAM */}
             <p className="mt-2 text-xs italic">
               Nota: Se não encontrar o código na sua caixa de entrada, verifique a pasta de <strong>SPAM</strong> ou Lixo Eletrónico.
+            </p>
+          </div>
+        )}
+
+        {/* Caixa do debug token — visível apenas quando email falha */}
+        {debugToken && (
+          <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 p-3 rounded mb-3 text-sm">
+            <p className="font-bold mb-1">⚠️ Modo de teste</p>
+            <p>Use este código para ativar a conta:</p>
+            <p className="text-2xl font-mono font-bold tracking-widest text-center mt-2">
+              {debugToken}
             </p>
           </div>
         )}
@@ -249,7 +256,6 @@ export default function AuthPage() {
         {/* LOGIN */}
         {abaAtiva === "login" ? (
           <form onSubmit={handleLogin} className="space-y-3">
-
             <input
               type="email"
               placeholder="Email"
@@ -258,7 +264,6 @@ export default function AuthPage() {
               className="w-full p-3 border rounded-lg"
               required
             />
-
             <input
               type="password"
               placeholder="Password"
@@ -267,21 +272,16 @@ export default function AuthPage() {
               className="w-full p-3 border rounded-lg"
               required
             />
-
             <div className="text-right text-sm">
               <button type="button" className="text-blue-600 hover:underline">Esqueceu a senha?</button>
             </div>
-
-            <button
-              disabled={loading}
-              className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold"
-            >
+            <button disabled={loading} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">
               {loading ? "A entrar..." : "Entrar"}
             </button>
           </form>
+
         ) : passo === 1 ? (
           <form onSubmit={avancarParaToken} className="space-y-3">
-
             <input
               placeholder="Nome"
               value={nome}
@@ -304,7 +304,6 @@ export default function AuthPage() {
               className="w-full p-3 border rounded-lg"
               required
             />
-
             <input
               type="password"
               placeholder="Password"
@@ -313,7 +312,6 @@ export default function AuthPage() {
               className="w-full p-3 border rounded-lg"
               required
             />
-
             <input
               type="password"
               placeholder="Confirmar Password"
@@ -322,31 +320,25 @@ export default function AuthPage() {
               className="w-full p-3 border rounded-lg"
               required
             />
-
-            <button
-              disabled={loading}
-              className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold"
-            >
-              Seguinte
+            <button disabled={loading} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">
+              {loading ? "A processar..." : "Seguinte"}
             </button>
             <div className="text-center text-sm mt-2">
-              <button type="button" onClick={() => alternarAba("login")} className="text-blue-600 hover:underline">Já estou cadastrado</button>
+              <button type="button" onClick={() => alternarAba("login")} className="text-blue-600 hover:underline">
+                Já estou cadastrado
+              </button>
             </div>
           </form>
+
         ) : (
           <form onSubmit={handleVerify} className="space-y-3">
-
             <input
               placeholder="Código de verificação"
               value={tokenEmail}
               onChange={(e) => setTokenEmail(e.target.value)}
               className="w-full p-3 border rounded-lg"
             />
-
-            <button
-              disabled={loading}
-              className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold"
-            >
+            <button disabled={loading} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">
               {loading ? "A validar..." : "Ativar conta"}
             </button>
           </form>
