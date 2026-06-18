@@ -13,6 +13,8 @@ export default function AuthPage() {
   const [passo, setPasso] = useState<1 | 2>(1);
 
   const [loading, setLoading] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+  const [mensagemProgresso, setMensagemProgresso] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [debugToken, setDebugToken] = useState<string | null>(null);
@@ -24,12 +26,50 @@ export default function AuthPage() {
   const [telefone, setTelefone] = useState("");
   const [tokenEmail, setTokenEmail] = useState("");
 
+  // =========================
+  // PROGRESSO SIMULADO
+  // =========================
+  const iniciarProgresso = (mensagens: string[]) => {
+    setProgresso(0);
+    setMensagemProgresso(mensagens[0]);
+
+    let etapa = 0;
+    const incremento = 90 / mensagens.length;
+
+    const intervalo = setInterval(() => {
+      etapa++;
+      if (etapa < mensagens.length) {
+        setMensagemProgresso(mensagens[etapa]);
+        setProgresso(Math.round(incremento * (etapa + 1)));
+      } else {
+        clearInterval(intervalo);
+      }
+    }, 800);
+
+    return intervalo;
+  };
+
+  const finalizarProgresso = (intervalo: ReturnType<typeof setInterval>) => {
+    clearInterval(intervalo);
+    setProgresso(100);
+    setMensagemProgresso("Concluído!");
+    setTimeout(() => {
+      setProgresso(0);
+      setMensagemProgresso("");
+    }, 600);
+  };
+
+  // =========================
+  // UI CONTROL
+  // =========================
   const alternarAba = (aba: "login" | "registo") => {
     setAbaAtiva(aba);
     setPasso(1);
     setErro(null);
     setSucesso(null);
     setDebugToken(null);
+    setProgresso(0);
+    setMensagemProgresso("");
   };
 
   // =========================
@@ -48,6 +88,11 @@ export default function AuthPage() {
     }
 
     setLoading(true);
+    const intervalo = iniciarProgresso([
+      "A validar os dados...",
+      "A criar a conta...",
+      "A enviar o código de verificação...",
+    ]);
 
     try {
       console.group("🟡 REGISTO");
@@ -77,7 +122,8 @@ export default function AuthPage() {
         throw new Error(data.detail || "Erro ao registar.");
       }
 
-      // Mostra o token no ecrã se o email não foi enviado
+      finalizarProgresso(intervalo);
+
       if (data.debug_token) {
         setDebugToken(data.debug_token);
         setSucesso(
@@ -92,6 +138,7 @@ export default function AuthPage() {
       setPasso(2);
     } catch (err: any) {
       console.error("❌ REGISTO ERROR:", err.message);
+      finalizarProgresso(intervalo);
       setErro(err.message);
     } finally {
       setLoading(false);
@@ -107,6 +154,11 @@ export default function AuthPage() {
 
     setLoading(true);
     setErro(null);
+    const intervalo = iniciarProgresso([
+      "A verificar as credenciais...",
+      "A autenticar...",
+      "A carregar o perfil...",
+    ]);
 
     try {
       console.group("🔐 LOGIN");
@@ -137,10 +189,12 @@ export default function AuthPage() {
         throw new Error(data.detail || "Login falhou.");
       }
 
+      finalizarProgresso(intervalo);
       login(data.user, data.token);
 
     } catch (err: any) {
       console.error("❌ LOGIN ERROR:", err.message);
+      finalizarProgresso(intervalo);
       setErro(err.message);
     } finally {
       setLoading(false);
@@ -156,6 +210,10 @@ export default function AuthPage() {
 
     setLoading(true);
     setErro(null);
+    const intervalo = iniciarProgresso([
+      "A validar o código...",
+      "A ativar a conta...",
+    ]);
 
     try {
       console.group("🟢 VERIFY");
@@ -182,6 +240,7 @@ export default function AuthPage() {
         throw new Error(data.detail || "Código inválido.");
       }
 
+      finalizarProgresso(intervalo);
       setSucesso("Conta ativada com sucesso!");
       setDebugToken(null);
 
@@ -192,6 +251,7 @@ export default function AuthPage() {
       }, 1500);
     } catch (err: any) {
       console.error("❌ VERIFY ERROR:", err.message);
+      finalizarProgresso(intervalo);
       setErro(err.message);
     } finally {
       setLoading(false);
@@ -253,6 +313,22 @@ export default function AuthPage() {
           </div>
         )}
 
+        {/* Barra de progresso — visível durante loading */}
+        {loading && (
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>{mensagemProgresso}</span>
+              <span>{progresso}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2">
+              <div
+                className="bg-slate-900 h-2 rounded-full transition-all duration-700"
+                style={{ width: `${progresso}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* LOGIN */}
         {abaAtiva === "login" ? (
           <form onSubmit={handleLogin} className="space-y-3">
@@ -263,6 +339,7 @@ export default function AuthPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
             <input
               type="password"
@@ -271,12 +348,18 @@ export default function AuthPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
             <div className="text-right text-sm">
-              <button type="button" className="text-blue-600 hover:underline">Esqueceu a senha?</button>
+              <button type="button" className="text-blue-600 hover:underline" disabled={loading}>
+                Esqueceu a senha?
+              </button>
             </div>
-            <button disabled={loading} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">
-              {loading ? "A entrar..." : "Entrar"}
+            <button
+              disabled={loading}
+              className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? mensagemProgresso || "A processar..." : "Entrar"}
             </button>
           </form>
 
@@ -288,6 +371,7 @@ export default function AuthPage() {
               onChange={(e) => setNome(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
             <input
               type="email"
@@ -296,6 +380,7 @@ export default function AuthPage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
             <input
               placeholder="Telefone"
@@ -303,6 +388,7 @@ export default function AuthPage() {
               onChange={(e) => setTelefone(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
             <input
               type="password"
@@ -311,6 +397,7 @@ export default function AuthPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
             <input
               type="password"
@@ -319,12 +406,21 @@ export default function AuthPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full p-3 border rounded-lg"
               required
+              disabled={loading}
             />
-            <button disabled={loading} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">
-              {loading ? "A processar..." : "Seguinte"}
+            <button
+              disabled={loading}
+              className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? mensagemProgresso || "A processar..." : "Seguinte"}
             </button>
             <div className="text-center text-sm mt-2">
-              <button type="button" onClick={() => alternarAba("login")} className="text-blue-600 hover:underline">
+              <button
+                type="button"
+                onClick={() => alternarAba("login")}
+                className="text-blue-600 hover:underline"
+                disabled={loading}
+              >
                 Já estou cadastrado
               </button>
             </div>
@@ -337,9 +433,13 @@ export default function AuthPage() {
               value={tokenEmail}
               onChange={(e) => setTokenEmail(e.target.value)}
               className="w-full p-3 border rounded-lg"
+              disabled={loading}
             />
-            <button disabled={loading} className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold">
-              {loading ? "A validar..." : "Ativar conta"}
+            <button
+              disabled={loading}
+              className="w-full bg-slate-900 text-white p-3 rounded-lg font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? mensagemProgresso || "A processar..." : "Ativar conta"}
             </button>
           </form>
         )}
